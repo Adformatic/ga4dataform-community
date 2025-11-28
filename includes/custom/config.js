@@ -41,7 +41,7 @@ const lowerSQL = helpers.lowerSQL;
 const customConfig = {
   // on a new or full build, this start date will be picked
 
-  GA4_START_DATE: "2020-01-01",
+  GA4_START_DATE: "2025-01-01",
 
   // If you want to create 1 datamodel using multiple GA4 datasets, you can do it here.
   // Note: the datasets need to be in the same Region and in the same GCP project.
