@@ -43,14 +43,6 @@ const customConfig = {
 
   GA4_START_DATE: "2025-01-01",
 
-  // If you want to create 1 datamodel using multiple GA4 datasets, you can do it here.
-  // Note: the datasets need to be in the same Region and in the same GCP project.
-  // 1 single config is used, the events tables are UNIONed together.
-  // 
-  // Config is a simple array of dataset names: e.g.  [ "analytics_1234567", ""analytics_470310189"" ]
-  // Only include extra datasets. Main property will always be included (see /workflow_settings.yaml)
-  EXTRA_GA4_DATASETS_ARRAY: ["analytics_304928177"],
-
   // custom definitions
   // a very complete list of all recommended and standard event parameters is
   // included in the `event_params` column.
