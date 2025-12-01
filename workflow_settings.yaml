@@ -2,11 +2,11 @@ defaultAssertionDataset: superform_assertion
 defaultLocation: EU
 defaultProject: b32-group
 vars:
-  GA4_DATASET: analytics_292459266
+  GA4_DATASET: analytics_304928177
   LOCAL_TIMEZONE: Europe/Paris
-  QUALITY_DATASET: superform_quality_ga4
-  TRANSFORMATIONS_DATASET: superform_transformations_ga4
-  OUTPUTS_DATASET: superform_outputs_ga4
+  QUALITY_DATASET: superform_quality_304928177
+  TRANSFORMATIONS_DATASET: superform_transformations_304928177
+  OUTPUTS_DATASET: superform_outputs_304928177
   LABEL_GENERIC_BRAND: superformlabs # constant 
   LABEL_GENERIC_TOOL: ga4dataform # constant for now... 
   LABEL_GENERIC_LICENSE_TYPE: core # core or premium 
