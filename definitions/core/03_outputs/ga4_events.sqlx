@@ -62,10 +62,44 @@ pre_operations {
   }
 }
 
+-- ORIGINAL with statement
+-- with query_source as (
+
+--     select
+--       _table_suffix as table_suffix,
+--       *
+--     from ${ref("events_*")}
+--     where true
+
+--     -- incrementality clause
+--     and parse_date('%Y%m%d', regexp_extract(_table_suffix,'[0-9]+')) >= date_checkpoint
+
+--     -- filters go here
+
+--     -- intraday filter: exclude
+--     and contains_substr(_table_suffix, 'intraday') is false
+--     -- fresh filter: exclude
+--     and contains_substr(_table_suffix, 'fresh') is false
+
+--     -- filters from config:
+--     -- discard unwanted events
+--     and ${helpers.generateFilterTypeFromListSQL("exclude", "event_name", config.EVENTS_TO_EXCLUDE)}
+--     -- discard unwanted hostnames
+--     and ${helpers.generateFilterTypeFromListSQL("exclude", "device.web_info.hostname", config.HOSTNAME_EXCLUDE)}
+--     -- only include wanted hostnames
+--     and ${helpers.generateFilterTypeFromListSQL("include", "device.web_info.hostname", config.HOSTNAME_INCLUDE_ONLY)}
+
+--     -- leave cookieless pings in - those will be in the events table do not have a session
+--     -- and user_pseudo_id is not null
+
+-- ),
+
 with query_source as (
 
     select
       _table_suffix as table_suffix,
+      -- mark intraday rows
+      contains_substr(_table_suffix, 'intraday') as is_intraday,
       *
     from ${ref("events_*")}
     where true
@@ -73,23 +107,21 @@ with query_source as (
     -- incrementality clause
     and parse_date('%Y%m%d', regexp_extract(_table_suffix,'[0-9]+')) >= date_checkpoint
 
-    -- filters go here
+    -- include intraday tables for the last 2 days
+    and (
+      -- all normal daily tables
+      contains_substr(_table_suffix, 'intraday') is false
+      -- OR intraday tables for the last 2 days
+      or parse_date('%Y%m%d', regexp_extract(_table_suffix,'[0-9]+')) >= date_sub(current_date(), interval 2 day)
+    )
 
-    -- intraday filter: exclude
-    and contains_substr(_table_suffix, 'intraday') is false
-    -- fresh filter: exclude
+    -- still exclude potential "fresh" tables
     and contains_substr(_table_suffix, 'fresh') is false
 
     -- filters from config:
-    -- discard unwanted events
     and ${helpers.generateFilterTypeFromListSQL("exclude", "event_name", config.EVENTS_TO_EXCLUDE)}
-    -- discard unwanted hostnames
     and ${helpers.generateFilterTypeFromListSQL("exclude", "device.web_info.hostname", config.HOSTNAME_EXCLUDE)}
-    -- only include wanted hostnames
     and ${helpers.generateFilterTypeFromListSQL("include", "device.web_info.hostname", config.HOSTNAME_INCLUDE_ONLY)}
-
-    -- leave cookieless pings in - those will be in the events table do not have a session
-    -- and user_pseudo_id is not null
 
 ),
 
@@ -100,6 +132,7 @@ step1 as (
     -- first chunk: the basics
     event_name,
     table_suffix,
+    is_intraday, -- new for intraday support
     parse_date('%Y%m%d', event_date) as event_date, -- partition column
     date_diff(current_date(), cast(event_date as date format 'YYYYMMDD'), day) > ${config.DATA_IS_FINAL_DAYS} as is_final, -- used for incrementality
 
@@ -609,6 +642,19 @@ add_meta_info as (
   from fixed
 ),
 
+
+-- NEW: resolve daily vs intraday at event_id level
+daily_vs_intraday as (
+  select
+    *
+  from add_meta_info
+  qualify row_number() over (
+    partition by event_id
+    order by is_intraday asc   -- false (daily) first, true (intraday) second
+  ) = 1
+),
+
+
 -- dedupe based on event_id and remove redundant event_params
 deduped as (
   select
@@ -619,7 +665,7 @@ deduped as (
                   page_referrer,
                   page_title
                   )) as event_params),
-  from add_meta_info
+  from daily_vs_intraday -- was -> add_meta_info
   qualify row_number() over ( partition by event_id ) = 1
 ),
 
